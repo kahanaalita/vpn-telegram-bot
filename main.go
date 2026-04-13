@@ -35,6 +35,15 @@ func main() {
 		log.Printf("Failed to delete webhook: %v", err)
 	}
 
+	// HTTP-сервер для Render health check
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	go http.ListenAndServe(":"+port, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
 	// Настраиваем получение обновлений
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
