@@ -29,6 +29,12 @@ func main() {
 	}
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
+	// Удаляем вебхук перед началом поллинга (на случай если он остался от предыдущих запусков)
+	_, err = bot.Request(tgbotapi.DeleteWebhookConfig{DropPendingUpdates: true})
+	if err != nil {
+		log.Printf("Failed to delete webhook: %v", err)
+	}
+
 	// Настраиваем получение обновлений
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
