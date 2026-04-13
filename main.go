@@ -44,9 +44,13 @@ func main() {
 		if update.Message.IsCommand() {
 			switch update.Message.Command() {
 			case "start":
+				log.Printf("Received /start from chat %d", update.Message.Chat.ID)
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Привет! Используй /configs для получения VLESS конфигураций.")
-				bot.Send(msg)
+				if _, err := bot.Send(msg); err != nil {
+					log.Printf("Error sending start message: %v", err)
+				}
 			case "configs":
+				log.Printf("Received /configs from chat %d", update.Message.Chat.ID)
 				// Запускаем в горутине чтобы не блокировать обработку других сообщений
 				go sendConfigs(bot, update.Message.Chat.ID)
 			}
@@ -56,22 +60,30 @@ func main() {
 
 // sendConfigs получает конфигурации с GitHub и отправляет их пользователю
 func sendConfigs(bot *tgbotapi.BotAPI, chatID int64) {
+	log.Printf("Starting sendConfigs for chat %d", chatID)
+
 	// Делаем HTTP запрос к GitHub
 	resp, err := http.Get(configURL)
 	if err != nil {
+		log.Printf("Error fetching configs: %v", err)
 		msg := tgbotapi.NewMessage(chatID, "Ошибка при получении конфигураций")
 		bot.Send(msg)
 		return
 	}
 	defer resp.Body.Close()
 
+	log.Printf("HTTP response status: %d", resp.StatusCode)
+
 	// Читаем тело ответа
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Printf("Error reading response: %v", err)
 		msg := tgbotapi.NewMessage(chatID, "Ошибка чтения ответа")
 		bot.Send(msg)
 		return
 	}
+
+	log.Printf("Response body length: %d bytes", len(body))
 
 	// Ищем все vless:// конфигурации (могут быть многострочными из-за переносов)
 	// Убираем переносы строк и ищем паттерн vless://...#
@@ -85,10 +97,13 @@ func sendConfigs(bot *tgbotapi.BotAPI, chatID int64) {
 	}
 
 	if len(matches) == 0 {
+		log.Printf("No configs found in response")
 		msg := tgbotapi.NewMessage(chatID, "Конфигурации не найдены")
 		bot.Send(msg)
 		return
 	}
+
+	log.Printf("Sending %d configs to chat %d", len(matches), chatID)
 
 	// Отправляем конфигурации частями по 10 штук (конфигурации длинные, лимит Telegram 4096 символов)
 	var batch []string
